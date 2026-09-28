@@ -2,7 +2,6 @@
   "name": "waifu-web",
   "version": "0.1.0",
   "description": "Self-hosted Live2D (Cubism 4/5, moc3) web widget: one-line embed, remote model library, stackable expressions",
-  "license": "MIT",
   "type": "module",
   "repository": {
     "type": "git",
