@@ -1,0 +1,39 @@
+{
+  "name": "waifu-web",
+  "version": "0.1.0",
+  "description": "Self-hosted Live2D (Cubism 4/5, moc3) web widget: one-line embed, remote model library, stackable expressions",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Type010/live2d-web.git"
+  },
+  "homepage": "https://github.com/Type010/live2d-web#readme",
+  "bugs": {
+    "url": "https://github.com/Type010/live2d-web/issues"
+  },
+  "keywords": [
+    "live2d",
+    "cubism",
+    "moc3",
+    "waifu",
+    "desktop-pet",
+    "widget",
+    "vtuber"
+  ],
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "esbuild src/render/engine-entry.js --bundle --minify --format=iife --alias:@framework=./src/sdk/framework --outfile=dist/vendor/engine.js && esbuild src/index.js --bundle --minify --format=iife --outfile=dist/waifu.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}
