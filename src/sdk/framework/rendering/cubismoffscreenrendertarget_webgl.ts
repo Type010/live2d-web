@@ -203,6 +203,18 @@ export class CubismOffscreenRenderTarget_WebGL extends CubismRenderTarget_WebGL 
     this._webGLOffscreenManager = null;
   }
 
+  /**
+   * waifu-web 本地补丁：归还借用的离屏资源，**不删除 GL 对象**。
+   *
+   * 这个实例的 `_colorBuffer` / `_renderTexture` 是 `setOffscreenRenderTarget()` 从
+   * `CubismWebGLOffscreenManager` 的容器池借来的，所有权在池——池会在自己缩容或上下文
+   * 销毁时统一 `deleteTexture` / `deleteFramebuffer`。
+   *
+   * 原实现把"归还"和"删除"都做了：`stopUsingRenderTexture()` 只是把槽位标记为空闲、
+   * 条目仍留在池里，紧接着的 `deleteTexture` / `deleteFramebuffer` 却把对象删掉——
+   * 池里于是留下**悬空引用**。下一个借用该槽位的模型拿到已删除的纹理 / FBO，
+   * 遮罩渲染失效，表现就是模型变成一块白块；同时槽位带着悬空对象在池里累积，显存只增不减。
+   */
   public release(): void {
     if (
       this._webGLOffscreenManager != null &&
@@ -215,14 +227,9 @@ export class CubismOffscreenRenderTarget_WebGL extends CubismRenderTarget_WebGL 
       );
     }
 
-    if (this._colorBuffer && this._gl) {
-      this._gl.deleteTexture(this._colorBuffer);
-      this._colorBuffer = null;
-    }
-    if (this._renderTexture && this._gl) {
-      this._gl.deleteFramebuffer(this._renderTexture);
-      this._renderTexture = null;
-    }
+    // 只放弃本地引用，GL 对象交由池释放（见上面的说明）
+    this._colorBuffer = null;
+    this._renderTexture = null;
 
     if (this._webGLOffscreenManager != null) {
       this._webGLOffscreenManager = null;

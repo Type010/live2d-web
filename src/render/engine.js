@@ -13,6 +13,7 @@ import { setShaderPath } from '../sdk/samples/lappdefine.ts';
 import { CubismFramework } from '../sdk/framework/live2dcubismframework.ts';
 import { CubismMatrix44 } from '../sdk/framework/math/cubismmatrix44.ts';
 import { CubismShaderManager_WebGL } from '../sdk/framework/rendering/cubismshader_webgl.ts';
+import { CubismWebGLOffscreenManager } from '../sdk/framework/rendering/cubismoffscreenmanager.ts';
 import { createMotionDriver } from '../motion/index.js';
 
 const TOP_PAD = 12; // 内容顶边与画布顶边的留白（px）：气泡尖角伸入区
@@ -78,6 +79,11 @@ export class Engine {
 			} catch (err) {
 				console.warn('[waifu] 着色器管理器清理失败：', err);
 			}
+			// 离屏容器池同样按 GL 上下文缓存，且是常驻单例：旧上下文的对象已随丢失一起失效，
+			// 但池里仍留着记录，不清理就会每恢复一次上下文多一份（显存与 JS 引用都收不回）。
+			// removeContext 只释放这一个上下文，不影响单例本身；必须在重建任何 GL 资源之前调用，
+			// 否则按旧名字 deleteTexture 可能误删刚分配的新对象。
+			this._releaseOffscreenPool();
 			// 顶点缓冲等资源在渲染器内部，交给上层重新装载模型来整体重建
 			this.onContextRestored && this.onContextRestored();
 		};
@@ -506,7 +512,26 @@ export class Engine {
 			this.textureManager.release();
 			this.textureManager = null;
 		}
+		// 离屏容器池是常驻单例，组件关闭时必须显式释放本上下文的那一份：
+		// 反复"关闭 → 左下角恢复"会不断新建 WebGL 上下文，池里的容器不能留给 GC 碰运气
+		this._releaseOffscreenPool();
 		if (this.canvas && this.canvas.parentNode) this.canvas.parentNode.removeChild(this.canvas);
 		this.canvas = null;
+	}
+
+	/**
+	 * 释放离屏容器池里属于当前 GL 上下文的那一份（waifu-web 本地补丁）。
+	 *
+	 * `CubismWebGLOffscreenManager` 是常驻单例，内部按 GL 上下文缓存容器池，官方没有任何
+	 * 调用点会释放它——上下文丢失后恢复、或组件关闭再打开，旧上下文的容器都会一直留在池里。
+	 * `removeContext()` 只清掉指定上下文，不动单例本身，可以安全地在两种时机调用。
+	 */
+	_releaseOffscreenPool() {
+		try {
+			const gl = this.glManager && this.glManager.getGl ? this.glManager.getGl() : null;
+			if (gl) CubismWebGLOffscreenManager.getInstance().removeContext(gl);
+		} catch (err) {
+			console.warn('[waifu] 离屏容器池清理失败：', err);
+		}
 	}
 }

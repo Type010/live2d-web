@@ -739,9 +739,14 @@ export class CubismRenderer_WebGL extends CubismRenderer {
     this._offscreenMasks.length = 0;
     this._offscreenMasks = null;
 
+    // waifu-web 本地补丁：`_offscreenList` 里的渲染目标是**从容器池借用**的
+    // （见本文件 setOffscreenRenderTarget 的调用点），所有权在 CubismWebGLOffscreenManager。
+    // 这里若像上面几组那样调 destroyRenderTarget()，会把池的纹理 / FBO 删掉，
+    // 而池仍把它当可用槽位——下一个模型借到就拿到已删除的对象，遮罩失效、模型变白块。
+    // 因此对借用来的资源只调用 release() 归还，由池负责最终释放。
     for (let i = 0; i < this._offscreenList.length; i++) {
       if (this._offscreenList[i] != null && this._offscreenList[i].isValid()) {
-        this._offscreenList[i].destroyRenderTarget();
+        this._offscreenList[i].release();
       }
     }
     this._offscreenList.length = 0;
